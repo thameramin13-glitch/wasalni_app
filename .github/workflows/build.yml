@@ -24,8 +24,11 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Android Structure
-        run: flutter create . --force --platforms=android --org=com.wasalni.app
+      - name: Generate Android Scaffold Safely
+        run: |
+          flutter create temp_app --platforms=android --org=com.wasalni.app
+          cp -r temp_app/android .
+          rm -rf temp_app
 
       - name: Get Dependencies
         run: flutter pub get
