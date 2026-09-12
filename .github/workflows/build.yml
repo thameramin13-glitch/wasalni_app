@@ -25,6 +25,9 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Generate Android Scaffold
+        run: flutter create . --platforms=android --org=com.wasalni.app
+
       - name: Get Dependencies
         run: flutter pub get
 
