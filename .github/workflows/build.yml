@@ -23,16 +23,15 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
 
-      - name: Generate Android Scaffold
-        run: flutter create . --platforms=android --org=com.wasalni.app
+      - name: Create Android Structure
+        run: flutter create . --force --platforms=android --org=com.wasalni.app
 
       - name: Get Dependencies
         run: flutter pub get
 
       - name: Build App Bundle (.aab)
-        run: flutter build appbundle --release --no-codesign
+        run: flutter build appbundle --release
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
