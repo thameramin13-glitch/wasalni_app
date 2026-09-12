@@ -1,4 +1,4 @@
-name: Build Flutter Release AAB
+name: Build Flutter APK & AAB
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Generate Android Scaffold Safely
+      - name: Generate Android Structure
         run: |
           flutter create temp_app --platforms=android --org=com.wasalni.app
           cp -r temp_app/android .
@@ -33,8 +33,17 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build App Bundle (.aab)
+      - name: Build APK (For Testing on Phone)
+        run: flutter build apk --release
+
+      - name: Build App Bundle (For Google Play)
         run: flutter build appbundle --release
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release-apk.apk
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
