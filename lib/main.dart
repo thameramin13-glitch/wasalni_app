@@ -493,7 +493,7 @@ class _AccountVerificationScreenState extends State<AccountVerificationScreen> {
                           widget.activeRole == 'سائق'
                               ? 'أدخل بياناتك الرسمية لتفعيل الحساب فوراً بدون الحاجة لرفع أوراق حالياً.'
                               : 'قم بإكمال بياناتك لرفع مستوى الأمان وتفعيل كافة الصلاحيات.',
-                          style: const TextStyle(fontSize: 12, color: Colors.black64),
+                          style: const TextStyle(fontSize: 12, color: Colors.black54),
                         ),
                       ],
                     ),
