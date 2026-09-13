@@ -210,7 +210,7 @@ class ServicesScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _buildTile(Icons.minor_crash, 'سطحات ونشال', 'نقل المركبات بين المدن والدولي'),
-          _buildTile(Icons.build, 'صيانة وميكانيك متنقل', 'إصلاح اعطال الطرق الطويلة'),
+          _buildTile(Icons.build, 'صيانة وميكانيك متنقل', 'إصلاح أعطال الطرق الطويلة'),
           _buildTile(Icons.local_gas_station, 'توصيل وقود', 'تزويد طارئ بالبنزين/الديزل'),
           _buildTile(Icons.tire_repair, 'إصلاح إطارات', 'بنشر متنقل في السفر'),
         ],
@@ -427,14 +427,14 @@ class ProfileScreen extends StatelessWidget {
             controller: pinController,
             obscureText: true,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: 'أدخل رمز المرور السري (مثال: 7777)', border: OutlineInputBorder()),
+            decoration: const InputDecoration(hintText: 'أدخل رمز المرور السري (7777)', border: OutlineInputBorder()),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redBackground),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () {
-                if (pinController.text == "7777") { // رمز الدخول السري
+                if (pinController.text == "7777") {
                   Navigator.pop(context);
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDashboardScreen()));
                 } else {
@@ -471,12 +471,10 @@ class ProfileScreen extends StatelessWidget {
           const Divider(),
           ListTile(leading: const Icon(Icons.wallet), title: const Text('المحفظة'), trailing: const Icon(Icons.arrow_forward_ios, size: 16)),
           const Divider(),
-          
-          // المدخل المخفي للوحة التحكم: الضغط المطول أو النقر على هذا الخيار يفتح بوابة الإدارة
           ListTile(
             leading: const Icon(Icons.info_outline, color: Colors.grey),
             title: const Text('إصدار التطبيق v1.0.0', style: TextStyle(color: Colors.grey)),
-            onLongPress: () => _showAdminLoginDialog(context), // ضغطة مطولة للدخول
+            onLongPress: () => _showAdminLoginDialog(context),
             onTap: () => _showAdminLoginDialog(context),
           ),
         ],
@@ -485,9 +483,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// =========================================================================
-// ---------------- 6. لوحة التحكم الإدارية الكاملة والمخفية ----------------
-// =========================================================================
+// ---------------- 6. لوحة التحكم الإدارية المخفية ----------------
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -537,7 +533,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     );
   }
 
-  // 1. تبويب توثيق وثائق السائقين
   Widget _buildDriversApprovalTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -545,14 +540,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
         _buildAdminCard(
           title: 'طلب توثيق: علي المحمدي (سيارة VIP)',
           subtitle: 'الوثائق: بطاقة شخصية + رخصة + استمارة',
-          status: 'قيد المراجعة',
           onApprove: () {},
           onReject: () {},
         ),
         _buildAdminCard(
           title: 'طلب توثيق: صالح أحمد (دراجة نارية)',
           subtitle: 'الوثائق: جواز سفر فقط',
-          status: 'قيد المراجعة',
           onApprove: () {},
           onReject: () {},
         ),
@@ -560,7 +553,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     );
   }
 
-  // 2. تبويب تأكيد الاشتراكات والحوالات
   Widget _buildSubscriptionsTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -581,7 +573,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     );
   }
 
-  // 3. تبويب الإحصائيات الشاملة
   Widget _buildStatsTab() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -607,7 +598,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     );
   }
 
-  // 4. تبويب إعدادات التحكم بالأسعار والمدن
   Widget _buildSystemSettingsTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -627,7 +617,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     );
   }
 
-  Widget _buildAdminCard({required String title, required String subtitle, required String status, required VoidCallback onApprove, required VoidCallback onReject}) {
+  Widget _buildAdminCard({required String title, required String subtitle, required VoidCallback onApprove, required VoidCallback onReject}) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
