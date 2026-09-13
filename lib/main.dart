@@ -4,8 +4,35 @@ void main() {
   runApp(const WasalniApp());
 }
 
-class WasalniApp extends StatelessWidget {
+class WasalniApp extends StatefulWidget {
   const WasalniApp({super.key});
+
+  @override
+  State<WasalniApp> createState() => _WasalniAppState();
+}
+
+class _WasalniAppState extends State<WasalniApp> {
+  bool isLoggedIn = false;
+  String userPhoneNumber = '';
+  String? selectedRole; // 'راكب' | 'سائق' | 'مقدم خدمة'
+  String currentCity = 'صنعاء';
+
+  void loginUser(String phone) {
+    setState(() {
+      userPhoneNumber = phone;
+      isLoggedIn = true;
+    });
+  }
+
+  void selectRole(String role) {
+    setState(() {
+      selectedRole = role;
+    });
+  }
+
+  void updateCity(String newCity) {
+    setState(() => currentCity = newCity);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,16 +41,263 @@ class WasalniApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.teal,
-        scaffoldBackgroundColor: const Color(0xFFF4F6F8),
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         fontFamily: 'sans-serif',
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          centerTitle: true,
+          backgroundColor: Colors.teal,
+          foregroundColor: Colors.white,
+        ),
       ),
-      home: const MainTabNavigation(),
+      home: !isLoggedIn
+          ? PhoneAuthScreen(onLoginSuccess: loginUser)
+          : (selectedRole == null
+              ? RoleSelectionScreen(onRoleSelected: selectRole)
+              : MainTabNavigation(
+                  userPhone: userPhoneNumber,
+                  activeRole: selectedRole!,
+                  currentCity: currentCity,
+                  onRoleChanged: selectRole,
+                  onCityChanged: updateCity,
+                )),
     );
   }
 }
 
+// =========================================================================
+// 1. شاشة توثيق رقم الجوال OTP
+// =========================================================================
+class PhoneAuthScreen extends StatefulWidget {
+  final Function(String) onLoginSuccess;
+  const PhoneAuthScreen({super.key, required this.onLoginSuccess});
+
+  @override
+  State<PhoneAuthScreen> createState() => _PhoneAuthScreenState();
+}
+
+class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _otpController = TextEditingController();
+  bool isOtpSent = false;
+
+  void _sendOtp() {
+    if (_phoneController.text.trim().length >= 8) {
+      setState(() => isOtpSent = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال رمز التحقق OTP (رمز الاختبار: 1234)')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يرجى إدخال رقم جوال صحيح')),
+      );
+    }
+  }
+
+  void _verifyOtp() {
+    if (_otpController.text.trim() == "1234") {
+      widget.onLoginSuccess(_phoneController.text.trim());
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('رمز التحقق غير صحيح! أدخل 1234')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.local_taxi, size: 70, color: Colors.teal),
+              ),
+              const SizedBox(height: 15),
+              const Text('تطبيق وصلني', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.teal)),
+              const Text('منظومة النقل وخدمات الطرق الشاملة', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const SizedBox(height: 40),
+              if (!isOtpSent) ...[
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'رقم الجوال (مثال: 777123456)',
+                    prefixIcon: const Icon(Icons.phone),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _sendOtp,
+                    child: const Text('إرسال رمز التحقق (OTP)', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ] else ...[
+                Text('تم إرسال الرمز إلى: ${_phoneController.text}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: _otpController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                  decoration: InputDecoration(
+                    hintText: '1234',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _verifyOtp,
+                    child: const Text('تأكيد الدخول', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =========================================================================
+// 2. شاشة اختيار نوع الحساب الجذابة
+// =========================================================================
+class RoleSelectionScreen extends StatelessWidget {
+  final Function(String) onRoleSelected;
+  const RoleSelectionScreen({super.key, required this.onRoleSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              const Text('مرحباً بك في وصلني 👋', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal)),
+              const SizedBox(height: 5),
+              const Text('يرجى اختيار نوع الحساب للمتابعة:', style: TextStyle(fontSize: 14, color: Colors.grey)),
+              const SizedBox(height: 30),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _buildRoleCard(
+                      context,
+                      title: 'حساب راكب',
+                      subtitle: 'طلب رحلات وحجز مقاعد بين المدن وداخلها بسهولة',
+                      icon: Icons.person_pin,
+                      color: Colors.teal,
+                      onTap: () => onRoleSelected('راكب'),
+                    ),
+                    const SizedBox(height: 15),
+                    _buildRoleCard(
+                      context,
+                      title: 'حساب سائق',
+                      subtitle: 'تقديم خدمات النقل (سيارة، باص، دراجة نارية)',
+                      icon: Icons.time_to_leave,
+                      color: Colors.blue.shade700,
+                      onTap: () => onRoleSelected('سائق'),
+                    ),
+                    const SizedBox(height: 15),
+                    _buildRoleCard(
+                      context,
+                      title: 'حساب مقدم خدمة طريق',
+                      subtitle: 'تقديم خدمات (بنشر، ميكانيك، سطحة، تموينات، مجمع خدمات)',
+                      icon: Icons.build_circle,
+                      color: Colors.orange.shade800,
+                      onTap: () => onRoleSelected('مقدم خدمة'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleCard(BuildContext context, {required String title, required String subtitle, required IconData icon, required Color color, required VoidCallback onTap}) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: color.withOpacity(0.15),
+                child: Icon(icon, color: color, size: 32),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =========================================================================
+// 3. التنقل الرئيسي والتبويبات
+// =========================================================================
 class MainTabNavigation extends StatefulWidget {
-  const MainTabNavigation({super.key});
+  final String userPhone;
+  final String activeRole;
+  final String currentCity;
+  final Function(String) onRoleChanged;
+  final Function(String) onCityChanged;
+
+  const MainTabNavigation({
+    super.key,
+    required this.userPhone,
+    required this.activeRole,
+    required this.currentCity,
+    required this.onRoleChanged,
+    required this.onCityChanged,
+  });
 
   @override
   State<MainTabNavigation> createState() => _MainTabNavigationState();
@@ -31,19 +305,69 @@ class MainTabNavigation extends StatefulWidget {
 
 class _MainTabNavigationState extends State<MainTabNavigation> {
   int _currentIndex = 0;
-
-  final List<Widget> _screens = [
-    const TripBookingScreen(),
-    const ServicesScreen(),
-    const DriverRegistrationScreen(),
-    const SubscriptionPaymentScreen(),
-    const ProfileScreen(),
-  ];
+  final List<String> yemeniCities = ['صنعاء', 'عدن', 'تعز', 'الحديدة', 'إب', 'حضرموت (المكلا)', 'سيئون', 'مأرب', 'ذمار', 'عمران'];
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      TripBookingScreen(activeRole: widget.activeRole, currentCity: widget.currentCity),
+      ServicesScreen(currentCity: widget.currentCity),
+      InAppChatScreen(userPhone: widget.userPhone),
+      AccountVerificationScreen(activeRole: widget.activeRole, currentCity: widget.currentCity, yemeniCities: yemeniCities),
+      ProfileScreen(userPhone: widget.userPhone, activeRole: widget.activeRole, onRoleChanged: widget.onRoleChanged),
+    ];
+
     return Scaffold(
-      body: _screens[_currentIndex],
+      appBar: AppBar(
+        title: Text('وصلني - (${widget.activeRole})'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'تغيير نوع الحساب',
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+                builder: (context) => Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('اختر نوع الحساب للانتقال إليه', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 15),
+                      ListTile(
+                        leading: const Icon(Icons.person, color: Colors.teal),
+                        title: const Text('حساب راكب'),
+                        onTap: () {
+                          widget.onRoleChanged('راكب');
+                          Navigator.pop(context);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.directions_car, color: Colors.blue),
+                        title: const Text('حساب سائق'),
+                        onTap: () {
+                          widget.onRoleChanged('سائق');
+                          Navigator.pop(context);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.build, color: Colors.orange),
+                        title: const Text('حساب مقدم خدمة'),
+                        onTap: () {
+                          widget.onRoleChanged('مقدم خدمة');
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          )
+        ],
+      ),
+      body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         selectedItemColor: Colors.teal,
@@ -53,8 +377,8 @@ class _MainTabNavigationState extends State<MainTabNavigation> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.local_taxi), label: 'الرحلات'),
           BottomNavigationBarItem(icon: Icon(Icons.build), label: 'الخدمات'),
-          BottomNavigationBarItem(icon: Icon(Icons.badge), label: 'التسجيل'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'الاشتراك'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'الرسائل'),
+          BottomNavigationBarItem(icon: Icon(Icons.verified_user), label: 'توثيق الحساب'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'حسابي'),
         ],
       ),
@@ -62,589 +386,345 @@ class _MainTabNavigationState extends State<MainTabNavigation> {
   }
 }
 
-// ---------------- 1. شاشة طلب الرحلات والوجهات ----------------
-class TripBookingScreen extends StatefulWidget {
-  const TripBookingScreen({super.key});
+// =========================================================================
+// 4. شاشة توثيق الحساب الديناميكية (تتغير حسب نوع الحساب)
+// =========================================================================
+class AccountVerificationScreen extends StatefulWidget {
+  final String activeRole;
+  final String currentCity;
+  final List<String> yemeniCities;
+
+  const AccountVerificationScreen({
+    super.key,
+    required this.activeRole,
+    required this.currentCity,
+    required this.yemeniCities,
+  });
 
   @override
-  State<TripBookingScreen> createState() => _TripBookingScreenState();
+  State<AccountVerificationScreen> createState() => _AccountVerificationScreenState();
 }
 
-class _TripBookingScreenState extends State<TripBookingScreen> {
-  String selectedUserRole = 'راكب';
-  String selectedScope = 'داخل المدينة';
-  String selectedVehicle = 'اقتصادية';
+class _AccountVerificationScreenState extends State<AccountVerificationScreen> {
+  final _formKey = GlobalKey<FormState>();
 
-  String? selectedFromCity = 'صنعاء';
-  String? selectedToCity = 'عدن';
+  // الحقول النصية
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _idNumberController = TextEditingController();
+  final TextEditingController _licenseNumberController = TextEditingController();
+  final TextEditingController _registrationNumberController = TextEditingController();
 
-  final List<String> yemeniCities = ['صنعاء', 'عدن', 'تعز', 'الحديدة', 'إب', 'حضرموت (المكلا)', 'سيئون', 'مأرب', 'ذمار'];
-  final List<String> saudiCities = ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'جازان', 'شرورة', 'الدمام'];
+  // الخيارات والقوائم
+  String selectedCountry = 'اليمن';
+  String selectedCity = 'صنعاء';
+  String selectedIdType = 'الهوية الوطنية';
+  String selectedVehicleType = 'سيارة'; // سيارة، باص، دراجة نارية
 
-  List<String> getAvailableScopes() {
-    if (selectedUserRole == 'مقدم خدمة') {
-      return ['بين المدن', 'دولي (اليمن - السعودية)'];
-    }
-    return ['داخل المدينة', 'بين المدن', 'دولي (اليمن - السعودية)'];
-  }
+  final List<String> countries = ['اليمن', 'السعودية'];
+  final List<String> saudiCities = ['الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام', 'الخبر'];
 
-  @override
-  Widget build(BuildContext context) {
-    List<String> scopes = getAvailableScopes();
-    if (!scopes.contains(selectedScope)) {
-      selectedScope = scopes.first;
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('وصلني - الرحلات والوجهات'), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('نوع الحساب الحالي:', style: TextStyle(fontWeight: FontWeight.bold)),
-            Row(
-              children: ['راكب', 'سائق', 'مقدم خدمة'].map((role) {
-                return Expanded(
-                  child: RadioListTile<String>(
-                    title: Text(role, style: const TextStyle(fontSize: 12)),
-                    value: role,
-                    groupValue: selectedUserRole,
-                    onChanged: (val) => setState(() => selectedUserRole = val!),
-                  ),
-                );
-              }).toList(),
-            ),
-            const Divider(),
-            const Text('نطاق الرحلة:', style: TextStyle(fontWeight: FontWeight.bold)),
-            DropdownButton<String>(
-              isExpanded: true,
-              value: selectedScope,
-              items: scopes.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-              onChanged: (val) => setState(() => selectedScope = val!),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'من'),
-                    value: selectedFromCity,
-                    items: yemeniCities.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (val) => setState(() => selectedFromCity = val),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'إلى'),
-                    value: selectedToCity,
-                    items: (selectedScope.contains('دولي') ? saudiCities : yemeniCities)
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (val) => setState(() => selectedToCity = val),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 15),
-            const Text('نوع المركبة:', style: TextStyle(fontWeight: FontWeight.bold)),
-            Wrap(
-              spacing: 8,
-              children: ['اقتصادية', 'VIP', 'باص', 'دراجة نارية'].map((v) {
-                return ChoiceChip(
-                  label: Text(v),
-                  selected: selectedVehicle == v,
-                  onSelected: (selected) => setState(() => selectedVehicle = v),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 15),
-            Container(
-              height: 140,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.teal.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.teal.shade200),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.map, size: 40, color: Colors.teal),
-                  const SizedBox(height: 5),
-                  Text('مسار الرحلة: من $selectedFromCity إلى $selectedToCity', style: const TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('تم البحث عن رحلات $selectedScope من $selectedFromCity إلى $selectedToCity')),
-                  );
-                },
-                child: const Text('تأكيد وبحث عن طلبات', style: TextStyle(color: Colors.white, fontSize: 16)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------- 2. قسم خدمات الطريق ----------------
-class ServicesScreen extends StatelessWidget {
-  const ServicesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('خدمات الطريق والإنقاذ'), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildTile(Icons.minor_crash, 'سطحات ونشال', 'نقل المركبات بين المدن والدولي'),
-          _buildTile(Icons.build, 'صيانة وميكانيك متنقل', 'إصلاح أعطال الطرق الطويلة'),
-          _buildTile(Icons.local_gas_station, 'توصيل وقود', 'تزويد طارئ بالبنزين/الديزل'),
-          _buildTile(Icons.tire_repair, 'إصلاح إطارات', 'بنشر متنقل في السفر'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTile(IconData icon, String title, String desc) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(backgroundColor: Colors.teal.shade100, child: Icon(icon, color: Colors.teal)),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(desc),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-      ),
-    );
-  }
-}
-
-// ---------------- 3. قسم رفع الوثائق ----------------
-class DriverRegistrationScreen extends StatefulWidget {
-  const DriverRegistrationScreen({super.key});
-
-  @override
-  State<DriverRegistrationScreen> createState() => _DriverRegistrationScreenState();
-}
-
-class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
-  String selectedVehicleType = 'اقتصادية';
-  String idType = 'بطاقة شخصية';
-
-  @override
-  Widget build(BuildContext context) {
-    bool isMotorcycle = (selectedVehicleType == 'دراجة نارية');
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('رفع وتوثيق الوثائق'), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('نوع المركبة:', style: TextStyle(fontWeight: FontWeight.bold)),
-            DropdownButton<String>(
-              isExpanded: true,
-              value: selectedVehicleType,
-              items: ['اقتصادية', 'VIP', 'باص', 'دراجة نارية'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-              onChanged: (val) => setState(() => selectedVehicleType = val!),
-            ),
-            const SizedBox(height: 10),
-            const Text('نوع الهوية الوطنية:', style: TextStyle(fontWeight: FontWeight.bold)),
-            Row(
-              children: ['بطاقة شخصية', 'جواز سفر'].map((type) {
-                return Expanded(
-                  child: RadioListTile<String>(
-                    title: Text(type, style: const TextStyle(fontSize: 12)),
-                    value: type,
-                    groupValue: idType,
-                    onChanged: (val) => setState(() => idType = val!),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 10),
-            _buildUploadBox('صورة الهوية ($idType)', Icons.badge),
-            if (!isMotorcycle) ...[
-              const SizedBox(height: 10),
-              _buildUploadBox('صورة رخصة القيادة', Icons.card_membership),
-              const SizedBox(height: 10),
-              _buildUploadBox('صورة استمارة السيارة', Icons.directions_car),
-            ] else ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(10),
-                color: Colors.amber.shade100,
-                child: const Text('ملاحظة: سائق الدراجة النارية يتطلب منه صورة الهوية فقط.', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الوثائق لمراجعة الإدارة')));
-                },
-                child: const Text('إرسال للتحقق', style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUploadBox(String title, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8), color: Colors.white),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.teal),
-          const SizedBox(width: 10),
-          Expanded(child: Text(title)),
-          OutlinedButton(onPressed: () {}, child: const Text('رفع')),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------- 4. قسم الاشتراك والدفع ----------------
-class SubscriptionPaymentScreen extends StatefulWidget {
-  const SubscriptionPaymentScreen({super.key});
-
-  @override
-  State<SubscriptionPaymentScreen> createState() => _SubscriptionPaymentScreenState();
-}
-
-class _SubscriptionPaymentScreenState extends State<SubscriptionPaymentScreen> {
-  String paymentMethod = 'تحويل بنكي';
-  String selectedBank = 'بنك الكريمي للتمويل الأصغر الإسلامي';
-
-  final List<String> yemeniBanks = [
-    'بنك الكريمي للتمويل الأصغر الإسلامي',
-    'بنك البسيري للصرافة',
-    'بنك اليمن والكويت',
-    'محفظة جيب (Jeeb)',
-    'محفظة جوالي (Jawali)',
-    'تطبيق كاش (Cash)',
+  // خيارات مقدم الخدمة
+  List<String> selectedServices = ['ميكانيك وبنشر'];
+  final List<String> availableServices = [
+    'ميكانيك وبنشر',
+    'سطحة ونشال',
+    'تموينات وسوبرماركت',
+    'تزويد بالوقود',
+    'مطاعم واستراحات',
+    'رعاية طبية وإسعاف',
   ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('اشتراك السائق والدفع'), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              color: Colors.teal.shade50,
-              child: const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Text('رسوم الاشتراك الشهري للسائق ومقدم الخدمة', style: TextStyle(fontWeight: FontWeight.bold)),
-                    SizedBox(height: 5),
-                    Text('1,000 ريال يمني / شهر', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 15),
-            const Text('طريقة الدفع:', style: TextStyle(fontWeight: FontWeight.bold)),
-            Row(
-              children: ['تحويل بنكي', 'نقداً (عبر الموزع)'].map((method) {
-                return Expanded(
-                  child: RadioListTile<String>(
-                    title: Text(method, style: const TextStyle(fontSize: 12)),
-                    value: method,
-                    groupValue: paymentMethod,
-                    onChanged: (val) => setState(() => paymentMethod = val!),
-                  ),
-                );
-              }).toList(),
-            ),
-            if (paymentMethod == 'تحويل بنكي') ...[
-              DropdownButton<String>(
-                isExpanded: true,
-                value: selectedBank,
-                items: yemeniBanks.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-                onChanged: (val) => setState(() => selectedBank = val!),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                decoration: InputDecoration(labelText: 'رقم الإشعار أو حوالة السداد', border: OutlineInputBorder(borderRadius: BorderRadius.circular(8))),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تقديم طلب التفعيل للإدارة عبر $paymentMethod')));
-                },
-                child: const Text('إرسال طلب التفعيل', style: TextStyle(color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  bool idUploaded = false;
+
+  List<String> getIdTypes() {
+    if (widget.activeRole == 'سائق' && selectedVehicleType == 'دراجة نارية') {
+      return ['الهوية الوطنية', 'جواز سفر', 'أخرى'];
+    }
+    return ['الهوية الوطنية', 'جواز سفر'];
   }
-}
-
-// ---------------- 5. شاشة الحساب الشخصي (مع مدخل الإدارة المخفي) ----------------
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-
-  void _showAdminLoginDialog(BuildContext context) {
-    TextEditingController pinController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('دخول لوحة التحكم (للإدارة فقط)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          content: TextField(
-            controller: pinController,
-            obscureText: true,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(hintText: 'أدخل رمز المرور السري (7777)', border: OutlineInputBorder()),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {
-                if (pinController.text == "7777") {
-                  Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminDashboardScreen()));
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رمز المرور غير صحيح!')));
-                }
-              },
-              child: const Text('دخول', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('الحساب الشخصي'), backgroundColor: Colors.teal, foregroundColor: Colors.white),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Center(
-            child: Column(
-              children: [
-                CircleAvatar(radius: 40, backgroundColor: Colors.teal, child: Icon(Icons.person, size: 50, color: Colors.white)),
-                SizedBox(height: 10),
-                Text('أمين ثامر', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                Text('+967 777123456', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-          ListTile(leading: const Icon(Icons.history), title: const Text('سجل الرحلات'), trailing: const Icon(Icons.arrow_forward_ios, size: 16)),
-          const Divider(),
-          ListTile(leading: const Icon(Icons.wallet), title: const Text('المحفظة'), trailing: const Icon(Icons.arrow_forward_ios, size: 16)),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.info_outline, color: Colors.grey),
-            title: const Text('إصدار التطبيق v1.0.0', style: TextStyle(color: Colors.grey)),
-            onLongPress: () => _showAdminLoginDialog(context),
-            onTap: () => _showAdminLoginDialog(context),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------- 6. لوحة التحكم الإدارية المخفية ----------------
-class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
-
-  @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
-}
-
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    selectedCity = widget.currentCity;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('لوحة التحكم والإدارة الإرشيفية'),
-        backgroundColor: Colors.red.shade800,
-        foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          isScrollable: true,
-          tabs: const [
-            Tab(icon: Icon(Icons.verified_user), text: 'توثيق السائقين'),
-            Tab(icon: Icon(Icons.payments), text: 'تأكيد الاشتراكات'),
-            Tab(icon: Icon(Icons.analytics), text: 'الإحصائيات والرحلات'),
-            Tab(icon: Icon(Icons.settings), text: 'إعدادات النظام'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildDriversApprovalTab(),
-          _buildSubscriptionsTab(),
-          _buildStatsTab(),
-          _buildSystemSettingsTab(),
-        ],
-      ),
-    );
-  }
+    bool isMotorcycle = (widget.activeRole == 'سائق' && selectedVehicleType == 'دراجة نارية');
+    List<String> currentCitiesList = selectedCountry == 'اليمن' ? widget.yemeniCities : saudiCities;
 
-  Widget _buildDriversApprovalTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildAdminCard(
-          title: 'طلب توثيق: علي المحمدي (سيارة VIP)',
-          subtitle: 'الوثائق: بطاقة شخصية + رخصة + استمارة',
-          onApprove: () {},
-          onReject: () {},
-        ),
-        _buildAdminCard(
-          title: 'طلب توثيق: صالح أحمد (دراجة نارية)',
-          subtitle: 'الوثائق: جواز سفر فقط',
-          onApprove: () {},
-          onReject: () {},
-        ),
-      ],
-    );
-  }
+    if (!currentCitiesList.contains(selectedCity)) {
+      selectedCity = currentCitiesList.first;
+    }
 
-  Widget _buildSubscriptionsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.account_balance, color: Colors.teal),
-            title: const Text('تحويل عبر: بنك الكريمي'),
-            subtitle: const Text('المبلغ: 1,000 ر.ي | رقم الإشعار: 8945201\nالسائق: حسن المقطري'),
-            trailing: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              onPressed: () {},
-              child: const Text('تأكيد التفعيل', style: TextStyle(color: Colors.white)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatsTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _buildStatBox('إجمالي السائقين', '142', Colors.blue),
-              const SizedBox(width: 10),
-              _buildStatBox('الرحلات النشطة', '28', Colors.green),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildStatBox('الاشتراكات المفعلة', '110', Colors.orange),
-              const SizedBox(width: 10),
-              _buildStatBox('الإيرادات (ر.ي)', '110,000', Colors.purple),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSystemSettingsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        ListTile(
-          title: const Text('قيمة الاشتراك الشهري للسائق'),
-          subtitle: const Text('1,000 ريال يمني'),
-          trailing: IconButton(icon: const Icon(Icons.edit), onPressed: () {}),
-        ),
-        const Divider(),
-        ListTile(
-          title: const Text('إدارة قائمة المدن والخطوط الدولية'),
-          subtitle: const Text('اليمن (9 مدن) - السعودية (7 مدن)'),
-          trailing: IconButton(icon: const Icon(Icons.add_location), onPressed: () {}),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAdminCard({required String title, required String subtitle, required VoidCallback onApprove, required VoidCallback onReject}) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Form(
+        key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            Text(subtitle, style: const TextStyle(color: Colors.grey)),
+            // الترويسة
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.teal.shade50,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.teal.shade200),
+              ),
+              child: Row(
+                children: [
+                  const CircleAvatar(
+                    backgroundColor: Colors.teal,
+                    child: Icon(Icons.verified, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'توثيق حساب (${widget.activeRole})',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.teal.shade900),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.activeRole == 'سائق'
+                              ? 'أدخل بياناتك الرسمية لتفعيل الحساب فوراً بدون الحاجة لرفع أوراق حالياً.'
+                              : 'قم بإكمال بياناتك لرفع مستوى الأمان وتفعيل كافة الصلاحيات.',
+                          style: const TextStyle(fontSize: 12, color: Colors.black64),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // البيانات الأساسية
+            const Text('البيانات الشخصية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 10),
+            TextFormField(
+              controller: _fullNameController,
+              decoration: InputDecoration(
+                labelText: 'الاسم كاملاً',
+                hintText: 'أدخل الاسم كما هو في الهوية',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                prefixIcon: const Icon(Icons.person_outline),
+              ),
+              validator: (val) => val == null || val.isEmpty ? 'يرجى إدخال الاسم كاملاً' : null,
+            ),
+            const SizedBox(height: 14),
+
+            // الدولة والمدينة
             Row(
               children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                  onPressed: onApprove,
-                  icon: const Icon(Icons.check, color: Colors.white, size: 16),
-                  label: const Text('موافقة وتفعيل', style: TextStyle(color: Colors.white)),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: selectedCountry,
+                    decoration: InputDecoration(
+                      labelText: 'الدولة',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.flag_outlined),
+                    ),
+                    items: countries.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        selectedCountry = val!;
+                        selectedCity = selectedCountry == 'اليمن' ? widget.yemeniCities.first : saudiCities.first;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                  onPressed: onReject,
-                  icon: const Icon(Icons.close, size: 16),
-                  label: const Text('رفض'),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: selectedCity,
+                    decoration: InputDecoration(
+                      labelText: 'المدينة',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.location_city_outlined),
+                    ),
+                    items: currentCitiesList.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) => setState(() => selectedCity = val!),
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 14),
+
+            // نوع الهوية ورقمها
+            Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: DropdownButtonFormField<String>(
+                    value: getIdTypes().contains(selectedIdType) ? selectedIdType : getIdTypes().first,
+                    decoration: InputDecoration(
+                      labelText: 'نوع الهوية',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: getIdTypes().map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(),
+                    onChanged: (val) => setState(() => selectedIdType = val!),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 1,
+                  child: TextFormField(
+                    controller: _idNumberController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'رقم الهوية',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (val) => val == null || val.isEmpty ? 'مطلوب' : null,
+                  ),
+                ),
+              ],
+            ),
+
+            // ------------------ تفاصيل السائق ------------------
+            if (widget.activeRole == 'سائق') ...[
+              const SizedBox(height: 20),
+              const Text('بيانات المركبة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: selectedVehicleType,
+                decoration: InputDecoration(
+                  labelText: 'نوع المركبة',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.directions_car_outlined),
+                ),
+                items: ['سيارة', 'باص', 'دراجة نارية'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    selectedVehicleType = val!;
+                    if (!getIdTypes().contains(selectedIdType)) {
+                      selectedIdType = getIdTypes().first;
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 14),
+
+              if (!isMotorcycle) ...[
+                TextFormField(
+                  controller: _licenseNumberController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'رقم الرخصة',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.card_membership_outlined),
+                  ),
+                  validator: (val) => val == null || val.isEmpty ? 'يرجى إدخال رقم الرخصة' : null,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _registrationNumberController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'رقم الاستمارة',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.article_outlined),
+                  ),
+                  validator: (val) => val == null || val.isEmpty ? 'يرجى إدخال رقم الاستمارة' : null,
+                ),
+              ] else ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.two_wheeler, color: Colors.amber),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'لسائقي الدراجات النارية: يُكتفى بإدخال بيانات الهوية الشخصية فقط.',
+                          style: TextStyle(fontSize: 12, color: Colors.black87),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 15),
+              _buildSubscriptionCard('الاشتراك الشهري للسائق', '1000 ريال يمني'),
+            ],
+
+            // ------------------ تفاصيل مقدم الخدمة ------------------
+            if (widget.activeRole == 'مقدم خدمة') ...[
+              const SizedBox(height: 15),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 48),
+                  side: BorderSide(color: idUploaded ? Colors.green : Colors.teal),
+                ),
+                onPressed: () => setState(() => idUploaded = true),
+                icon: Icon(idUploaded ? Icons.check_circle : Icons.cloud_upload, color: idUploaded ? Colors.green : Colors.teal),
+                label: Text(idUploaded ? 'تم رفع الهوية بنجاح' : 'رفع صورة الهوية', style: TextStyle(color: idUploaded ? Colors.green : Colors.teal)),
+              ),
+              const SizedBox(height: 20),
+              const Text('نوع الخدمة (يمكن اختيار أكثر من خدمة للمجمع):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: availableServices.map((service) {
+                  final isSelected = selectedServices.contains(service);
+                  return FilterChip(
+                    label: Text(service),
+                    selected: isSelected,
+                    selectedColor: Colors.teal.shade100,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          selectedServices.add(service);
+                        } else {
+                          if (selectedServices.length > 1) selectedServices.remove(service);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 15),
+              _buildSubscriptionCard('الاشتراك الشهري لمقدم الخدمة', '1000 ريال يمني'),
+            ],
+
+            const SizedBox(height: 25),
+
+            // زر التوثيق وحفظ البيانات
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('تم توثيق بيانات حساب (${widget.activeRole}) بنجاح!'),
+                        backgroundColor: Colors.teal,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                label: const Text(
+                  'حفظ البيانات وتفعيل الحساب',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
             ),
           ],
         ),
@@ -652,16 +732,135 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Single
     );
   }
 
-  Widget _buildStatBox(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: color)),
+  Widget _buildSubscriptionCard(String title, String amount) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade900,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.payments, color: Colors.amber, size: 28),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  Text(amount, style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16)),
+                ],
+              ),
+            ],
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('اختر طريقة السداد: الكريمي / جوالي / كاش')),
+              );
+            },
+            child: const Text('تسديد الآن', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =========================================================================
+// 5. شاشات التبويبات التكميلية
+// =========================================================================
+class TripBookingScreen extends StatelessWidget {
+  final String activeRole;
+  final String currentCity;
+
+  const TripBookingScreen({super.key, required this.activeRole, required this.currentCity});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.map_outlined, size: 80, color: Colors.teal.shade300),
+          const SizedBox(height: 10),
+          Text('خريطة والرحلات النشطة ($currentCity)', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 5),
+          Text('الدور الحالي: $activeRole', style: const TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
+
+class ServicesScreen extends StatelessWidget {
+  final String currentCity;
+  const ServicesScreen({super.key, required this.currentCity});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.build_circle_outlined, size: 80, color: Colors.orange.shade300),
+          const SizedBox(height: 10),
+          Text('دليل خدمات الطريق بالقرب من ($currentCity)', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+class InAppChatScreen extends StatelessWidget {
+  final String userPhone;
+  const InAppChatScreen({super.key, required this.userPhone});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline, size: 80, color: Colors.blue),
+          SizedBox(height: 10),
+          Text('مركز المحادثات والدعم الفني', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  final String userPhone;
+  final String activeRole;
+  final Function(String) onRoleChanged;
+
+  const ProfileScreen({super.key, required this.userPhone, required this.activeRole, required this.onRoleChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+            const CircleAvatar(radius: 40, backgroundColor: Colors.teal, child: Icon(Icons.person, size: 50, color: Colors.white)),
+            const SizedBox(height: 15),
+            Text('رقم الجوال: $userPhone', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 5),
-            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            Text('نوع الحساب: $activeRole', style: const TextStyle(fontSize: 14, color: Colors.teal)),
+            const SizedBox(height: 25),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, minimumSize: const Size(200, 45)),
+              onPressed: () => onRoleChanged(activeRole == 'راكب' ? 'سائق' : 'راكب'),
+              icon: const Icon(Icons.swap_horiz, color: Colors.white),
+              label: const Text('تبديل نوع الحساب', style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
       ),
